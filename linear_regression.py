@@ -8,16 +8,11 @@ def linear_scaling(X, X_min, X_max):
     selisih[selisih == 0] = 1
     return (X - X_min) / selisih
 
-def sigmoid(z):
-    return 1 / (1 + np.exp(-z))
-
-def compute_log_loss(y_asli, y_prediksi):
+def compute_mse(y_asli, y_prediksi):
     N = len(y_asli)
-    epsilon = 1e-15
-    y_prediksi = np.clip(y_prediksi, epsilon, 1 - epsilon)
-    return -(1 / N) * np.sum(y_asli * np.log(y_prediksi) + (1 - y_asli) * np.log(1 - y_prediksi))
+    return (1 / N) * np.sum((y_asli - y_prediksi)**2)
 
-def gradient_descent_logistic(X, y, alpha, epochs):
+def gradient_descent(X, y, alpha, epochs):
     N = len(y)
     jumlah_fitur = X.shape[1]
 
@@ -25,21 +20,19 @@ def gradient_descent_logistic(X, y, alpha, epochs):
     b = 0.0
 
     for i in range(epochs):
-        z = np.dot(X, w) + b
-        y_prime = sigmoid(z)
-
+        y_prime = np.dot(X, w) + b
         error = y_prime - y
 
-        dw = (1 / N) * np.dot(X.T, error)
-        db = (1 / N) * np.sum(error)
+        dw = (2 / N) * np.dot(X.T, error)
+        db = (2 / N) * np.sum(error)
 
         w = w - (alpha * dw)
         b = b - (alpha * db)
 
     return w, b
 
-df = pd.read_csv("data_klasifikasi.csv")
-target = "Target_Label"
+df = pd.read_csv("online_vs_offline_learning_dataset.csv")
+target = "Exam_Score"
 
 df_encoded = pd.get_dummies(df, dtype=float)
 
@@ -54,26 +47,21 @@ X_max = np.max(X_raw, axis=0)
 X_scaled = linear_scaling(X_raw, X_min, X_max)
 
 print("Sedang melatih model...")
-w_final, b_final = gradient_descent_logistic(X_scaled, y, alpha=0.1, epochs=2000)
+w_final, b_final = gradient_descent(X_scaled, y, alpha=0.01, epochs=1000)
 
-y_prob = sigmoid(np.dot(X_scaled, w_final) + b_final)
-log_loss = compute_log_loss(y, y_prob)
+y_final_pred = np.dot(X_scaled, w_final) + b_final
+mse = compute_mse(y, y_final_pred)
+print(f"Training Selesai! Nilai MSE: {mse:.4f}")
 
-y_class = (y_prob >= 0.5).astype(int)
-akurasi = np.mean(y_class == y) * 100
-
-print("Training Selesai!")
-print(f"Nilai Log Loss: {log_loss:.4f}")
-print(f"Akurasi Model: {akurasi:.2f}%")
-
-idx_sorted = np.argsort(y_prob.flatten())
-plt.plot(y_prob.flatten()[idx_sorted], color='blue', label='Probabilitas')
-plt.scatter(range(len(y)), y.flatten()[idx_sorted], color='red', alpha=0.5, label='Kelas Asli')
-plt.axhline(0.5, color='green', linestyle='--', label='Threshold 0.5')
+plt.scatter(y, y_final_pred, color='blue', label='Prediksi')
+plt.plot([y.min(), y.max()], [y.min(), y.max()], color='red', label='Ideal')
+plt.xlabel('Nilai Asli')
+plt.ylabel('Nilai Tebakan')
+plt.title('Regresi Linear: Asli vs Prediksi')
 plt.legend()
 plt.show()
-
-print("Masukkan nilai (Ketik 1 atau 0 untuk kategori):")
+print("\n--- TEBAK NILAI BARU ---")
+print("Masukkan nilai (Ketik 1 atau 0 untuk fitur berupa kategori):")
 
 input_user = []
 for fitur in nama_fitur:
@@ -83,8 +71,5 @@ for fitur in nama_fitur:
 input_array = np.array(input_user).reshape(1, -1)
 input_scaled = linear_scaling(input_array, X_min, X_max)
 
-prob_tebakan = sigmoid(np.dot(input_scaled, w_final) + b_final)
-kelas_tebakan = 1 if prob_tebakan[0][0] >= 0.5 else 0
-
-print(f"\n=> Probabilitas: {prob_tebakan[0][0]:.4f}")
-print(f"=> Prediksi Kelas {target}: {kelas_tebakan}")
+hasil_tebakan = np.dot(input_scaled, w_final) + b_final
+print(f"\n=> Prediksi {target}: {hasil_tebakan[0][0]:.2f}")
