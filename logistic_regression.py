@@ -4,7 +4,9 @@ import pandas as pd
 
 
 def linear_scaling(X, X_min, X_max):
-    return (X - X_min) / (X_max - X_min)
+    selisih = X_max - X_min
+    selisih[selisih == 0] = 1
+    return (X - X_min) / selisih
 
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
@@ -39,8 +41,13 @@ def gradient_descent_logistic(X, y, alpha, epochs):
 df = pd.read_csv("data_klasifikasi.csv")
 target = "Target_Label"
 
-X_raw = df.drop(target, axis=1).values
-y = df[target].values.reshape(-1, 1)
+df_encoded = pd.get_dummies(df, dtype=float)
+
+X_df = df_encoded.drop(target, axis=1)
+nama_fitur = X_df.columns.tolist()
+
+X_raw = X_df.values.astype(float)
+y = df_encoded[target].values.reshape(-1, 1).astype(float)
 
 X_min = np.min(X_raw, axis=0)
 X_max = np.max(X_raw, axis=0)
@@ -70,13 +77,14 @@ plt.legend()
 plt.show()
 
 print("\n--- TEBAK KELAS BARU ---")
-jumlah_fitur = X_raw.shape[1]
-print(f"Masukkan {jumlah_fitur} angka dipisah dengan spasi.")
-input_user = input("Input angka: ")
+print("Masukkan nilai (Ketik 1 atau 0 untuk fitur kategori):")
 
-angka_list = [float(i) for i in input_user.split()]
-input_array = np.array(angka_list).reshape(1, -1)
+input_user = []
+for fitur in nama_fitur:
+    nilai = float(input(f"- {fitur}: "))
+    input_user.append(nilai)
 
+input_array = np.array(input_user).reshape(1, -1)
 input_scaled = linear_scaling(input_array, X_min, X_max)
 
 prob_tebakan = sigmoid(np.dot(input_scaled, w_final) + b_final)
